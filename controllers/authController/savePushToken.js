@@ -2,9 +2,9 @@ const userModel = require("../../models/userMode");
 
 const savePushToken = async (req, res) => {
   try {
-    const { token, fcmToken, userId } = req.body;
-
-    // Accept token whether sent as 'fcmToken' or 'token' in request body
+    const { token, fcmToken } = req.body;
+    // Extract userId from authenticated user or request body fallback
+    const userId = req.user?._id || req.user?.id || req.body.userId;
     const tokenToSave = fcmToken || token;
 
     if (!tokenToSave) {
@@ -14,7 +14,13 @@ const savePushToken = async (req, res) => {
       });
     }
 
-    // Update user's fcmToken in MongoDB
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User ID not found",
+      });
+    }
+
     const updatedUser = await userModel.findByIdAndUpdate(
       userId,
       { fcmToken: tokenToSave },
@@ -27,6 +33,8 @@ const savePushToken = async (req, res) => {
         message: "User not found",
       });
     }
+
+    console.log(`✅ FCM Token successfully saved for User (${userId})`);
 
     return res.status(200).json({
       success: true,

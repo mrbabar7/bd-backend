@@ -75,11 +75,13 @@ exports.sendBloodRequest = async (req, res) => {
     });
 
     const savedRequest = await newRequest.save();
+    const targetUserId = donor.userId._id || donor.userId;
+
     await createNotification({
-      userId: donor.userId._id,
+      userId: targetUserId,
       title: "Urgent Blood Requirement!",
       message: `${activeAddress.fullName} from ${activeAddress.city} needs ${requestedBloodType} blood.`,
-      link: "/(dashboard)/request", // Exact Expo Router path
+      link: "/(dashboard)/request",
     });
 
     // 6. Send Email to Donor
