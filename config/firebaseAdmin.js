@@ -23,7 +23,7 @@
 // }
 // module.exports = admin.default || admin;
 
-const admin = require("firebase-admin");
+const { initializeApp, cert, getApps } = require("firebase-admin/app");
 const { getMessaging } = require("firebase-admin/messaging");
 const path = require("path");
 
@@ -44,7 +44,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   }
 }
 
-// 2. Fallback to local JSON file if env var is missing
+// 2. Fallback to local serviceAccountKey.json file if env var is not present
 if (!serviceAccount) {
   try {
     serviceAccount = require(path.join(__dirname, "../serviceAccountKey.json"));
@@ -53,11 +53,11 @@ if (!serviceAccount) {
   }
 }
 
-// 3. Initialize Firebase Admin if not already initialized
-if (!admin.apps || admin.apps.length === 0) {
+// 3. Safe initialization using modular Firebase Admin SDK
+if (getApps().length === 0) {
   if (serviceAccount) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    initializeApp({
+      credential: cert(serviceAccount),
     });
     console.log("🔥 Firebase Admin SDK initialized successfully.");
   } else {
@@ -67,19 +67,8 @@ if (!admin.apps || admin.apps.length === 0) {
   }
 }
 
-// Safe messaging instance getter
-const getMessagingInstance = () => {
-  try {
-    return getMessaging();
-  } catch (e) {
-    if (typeof admin.messaging === "function") {
-      return admin.messaging();
-    }
-    throw new Error("Firebase Messaging SDK failed to initialize.");
-  }
-};
+const messaging = getMessaging();
 
 module.exports = {
-  admin,
-  messaging: getMessagingInstance(),
+  messaging,
 };
