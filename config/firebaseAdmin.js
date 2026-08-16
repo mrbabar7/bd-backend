@@ -23,52 +23,106 @@
 // }
 // module.exports = admin.default || admin;
 
+// const { initializeApp, cert, getApps } = require("firebase-admin/app");
+// const { getMessaging } = require("firebase-admin/messaging");
+// const path = require("path");
+
+// let serviceAccount;
+
+// // 1. Load credentials from Railway Environment Variable
+// if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+//   try {
+//     serviceAccount =
+//       typeof process.env.FIREBASE_SERVICE_ACCOUNT === "string"
+//         ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+//         : process.env.FIREBASE_SERVICE_ACCOUNT;
+//   } catch (err) {
+//     console.error(
+//       "❌ Failed to parse FIREBASE_SERVICE_ACCOUNT env var:",
+//       err.message,
+//     );
+//   }
+// }
+
+// // 2. Fallback to local JSON file if env var is missing
+// if (!serviceAccount) {
+//   try {
+//     serviceAccount = require(path.join(__dirname, "../serviceAccountKey.json"));
+//   } catch (err) {
+//     console.error("❌ Could not load serviceAccountKey.json:", err.message);
+//   }
+// }
+
+// // 3. Fix escaped private_key newlines (\n -> actual newlines)
+// if (serviceAccount && serviceAccount.private_key) {
+//   serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+// }
+
+// // 4. Initialize Firebase Admin
+// if (getApps().length === 0) {
+//   if (serviceAccount && serviceAccount.project_id) {
+//     initializeApp({
+//       credential: cert(serviceAccount),
+//     });
+//     console.log("🔥 Firebase Admin SDK initialized successfully.");
+//   } else {
+//     console.error("⚠️ Firebase Admin missing valid credentials!");
+//   }
+// }
+
+// const messaging = getMessaging();
+
+// module.exports = {
+//   messaging,
+// };
+
 const { initializeApp, cert, getApps } = require("firebase-admin/app");
 const { getMessaging } = require("firebase-admin/messaging");
-const path = require("path");
 
 let serviceAccount;
 
-// 1. Try loading credentials from Railway Environment Variable
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+// 1. Load from Base64 env variable (Local .env or Railway)
+if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+  try {
+    const decodedJson = Buffer.from(
+      process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+      "base64",
+    ).toString("utf8");
+    serviceAccount = JSON.parse(decodedJson);
+  } catch (err) {
+    console.error("❌ Failed to parse Base64 Firebase config:", err.message);
+  }
+}
+
+// 2. Fallback to raw JSON string env variable
+if (!serviceAccount && process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
     serviceAccount =
       typeof process.env.FIREBASE_SERVICE_ACCOUNT === "string"
         ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
         : process.env.FIREBASE_SERVICE_ACCOUNT;
   } catch (err) {
-    console.error(
-      "❌ Failed to parse FIREBASE_SERVICE_ACCOUNT env var:",
-      err.message,
-    );
+    console.error("❌ Failed to parse JSON Firebase config:", err.message);
   }
 }
 
-// 2. Fallback to local serviceAccountKey.json file if env var is not present
-if (!serviceAccount) {
-  try {
-    serviceAccount = require(path.join(__dirname, "../serviceAccountKey.json"));
-  } catch (err) {
-    console.error("❌ Could not load serviceAccountKey.json:", err.message);
-  }
+// 3. Fix private key newlines if necessary
+if (serviceAccount && serviceAccount.private_key) {
+  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
 }
 
-// 3. Safe initialization using modular Firebase Admin SDK
+// 4. Initialize Firebase Admin
 if (getApps().length === 0) {
-  if (serviceAccount) {
+  if (serviceAccount && serviceAccount.project_id) {
     initializeApp({
       credential: cert(serviceAccount),
     });
     console.log("🔥 Firebase Admin SDK initialized successfully.");
   } else {
-    console.error(
-      "⚠️ Firebase Admin initialized without service account credentials!",
-    );
+    console.error("⚠️ Firebase Admin missing valid credentials!");
   }
 }
 
 const messaging = getMessaging();
 
-module.exports = {
-  messaging,
-};
+module.exports = { messaging };
