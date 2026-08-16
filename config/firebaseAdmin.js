@@ -1,8 +1,8 @@
-const admin = require("firebase-admin");
-const path = require("path");
-const serviceAccount = require(
-  path.join(__dirname, "../serviceAccountKey.json"),
-);
+// const admin = require("firebase-admin");
+// const path = require("path");
+// const serviceAccount = require(
+//   path.join(__dirname, "../serviceAccountKey.json"),
+// );
 // const cert =
 //   admin.credential?.cert ||
 //   admin.default?.credential?.cert ||
@@ -22,6 +22,36 @@ const serviceAccount = require(
 //   });
 // }
 // module.exports = admin.default || admin;
+
+const admin = require("firebase-admin");
+const { getMessaging } = require("firebase-admin/messaging");
+const path = require("path");
+
+let serviceAccount;
+
+// 1. Try loading credentials from Railway Environment Variable
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    serviceAccount =
+      typeof process.env.FIREBASE_SERVICE_ACCOUNT === "string"
+        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+        : process.env.FIREBASE_SERVICE_ACCOUNT;
+  } catch (err) {
+    console.error(
+      "❌ Failed to parse FIREBASE_SERVICE_ACCOUNT env var:",
+      err.message,
+    );
+  }
+}
+
+// 2. Fallback to local JSON file if env var is missing
+if (!serviceAccount) {
+  try {
+    serviceAccount = require(path.join(__dirname, "../serviceAccountKey.json"));
+  } catch (err) {
+    console.error("❌ Could not load serviceAccountKey.json:", err.message);
+  }
+}
 
 // 3. Initialize Firebase Admin if not already initialized
 if (!admin.apps || admin.apps.length === 0) {
