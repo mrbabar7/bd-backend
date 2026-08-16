@@ -1,10 +1,6 @@
 const { DonationRequest, Donor } = require("../../models/formModel");
 const userModel = require("../../models/userMode");
 const Address = require("../../models/addressModel");
-const { sendingEmail } = require("../../email-sender/emailService");
-const {
-  requestTemplate,
-} = require("../../email-sender/donorRequestEmailTemplate");
 const { createNotification } = require("../notificationController");
 
 require("dotenv").config();
@@ -83,24 +79,6 @@ exports.sendBloodRequest = async (req, res) => {
       message: `${activeAddress.fullName} from ${activeAddress.city} needs ${requestedBloodType} blood.`,
       link: "/(dashboard)/request",
     });
-
-    // 6. Send Email to Donor
-    if (donor.userId && donor.userId.email) {
-      const baseUrl = `${BACKEND_SERVER}/api/donors/respond-email`;
-      const acceptLink = `${baseUrl}/${savedRequest._id}/accept`;
-      const rejectLink = `${baseUrl}/${savedRequest._id}/reject`;
-
-      const subject = `🩸 Urgent: Blood Request from ${activeAddress.fullName}`;
-      const emailHtml = requestTemplate
-        .replace("{donorName}", donor.fullName)
-        .replace("{seekerName}", activeAddress.fullName)
-        .replace("{bloodType}", requestedBloodType)
-        .replace("{location}", seekerLocationString)
-        .replace("{acceptLink}", acceptLink)
-        .replace("{rejectLink}", rejectLink);
-
-      await sendingEmail(donor.userId.email, subject, emailHtml);
-    }
 
     res.status(200).json({
       success: true,

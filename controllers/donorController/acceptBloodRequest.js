@@ -1,9 +1,5 @@
 const { DonationRequest, Donor } = require("../../models/formModel");
 const userModel = require("../../models/userMode");
-const { sendingEmail } = require("../../email-sender/emailService");
-const {
-  seekerUpdateTemplate,
-} = require("../../email-sender/seekerResponceEmailTemplate");
 const { createNotification } = require("../notificationController");
 
 exports.acceptRequest = async (req, res) => {
@@ -61,30 +57,6 @@ exports.acceptRequest = async (req, res) => {
         socketPayload,
       );
     }
-
-    const donorDetailsHtml = `
-      <div style="background:#f1f5f9; border-radius:16px; padding:20px; text-align:left; margin-top:20px; border-left: 5px solid #059669;">
-        <div style="font-weight:bold; margin-bottom:12px; color:#1e293b; font-size:16px;">DONOR CONTACT DETAILS:</div>
-        <div style="margin-bottom:8px; font-size:14px;"><b>👤 Name:</b> ${donor.fullName}</div>
-        <div style="margin-bottom:8px; font-size:14px;"><b>📞 Phone:</b> ${donor.mobileNumber}</div>
-        <div style="margin-bottom:8px; font-size:14px;"><b>📧 Email:</b> ${donor.userId ? donor.userId.email : "N/A"}</div>
-        <div style="margin-bottom:8px; font-size:14px;"><b>📍 Location:</b> ${donor.district}, ${donor.province}</div>
-      </div>
-    `;
-
-    const subject = "🩸 Good News: Your Blood Request was Accepted!";
-    const emailHtml = seekerUpdateTemplate
-      .replace("{bgColor}", "linear-gradient(135deg, #059669 0%, #064e3b 100%)")
-      .replace("{badgeColor}", "#059669")
-      .replace("{statusText}", "REQUEST ACCEPTED")
-      .replace("{seekerName}", seeker.name)
-      .replace(
-        "{mainMessage}",
-        `Great news! <b>${donor.fullName}</b> has accepted your blood request. Please contact the donor as soon as possible.`,
-      )
-      .replace("{donorDetailsHtml}", donorDetailsHtml);
-
-    await sendingEmail(seeker.email, subject, emailHtml);
 
     res.status(200).json({
       success: true,
