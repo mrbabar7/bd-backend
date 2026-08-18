@@ -89,69 +89,76 @@ exports.searchDonors = async (req, res) => {
       city,
       province,
       page = 1,
-      limit = 15,
+      limit = 10,
     } = req.query;
 
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 15;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
     const skip = (pageNum - 1) * limitNum;
 
     const today = new Date();
 
-    // 1. Build Search Query (Insensitive Case + Field Alias Support)
+    // 1. Build Clean Search Query
     let query = {
       userId: { $ne: currentUserId },
     };
 
-    if (bloodType) {
+    if (bloodType && bloodType.trim()) {
       query.bloodType = bloodType.trim();
     }
 
-    const cityOrDistrict = district || city;
+    const cityOrDistrict = (district || city || "").trim();
     if (cityOrDistrict) {
-      const cityRegex = new RegExp(`^${cityOrDistrict.trim()}$`, "i");
-      query.$or = [{ district: cityRegex }, { city: cityRegex }];
+      // Escape special characters for safer regex matching
+      const safeCity = cityOrDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.$or = [
+        { district: new RegExp(`^${safeCity}$`, "i") },
+        { city: new RegExp(`^${safeCity}$`, "i") },
+      ];
     }
 
-    if (province) {
-      query.province = new RegExp(`^${province.trim()}$`, "i");
+    if (province && province.trim()) {
+      const safeProvince = province
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.province = new RegExp(`^${safeProvince}$`, "i");
     }
 
-    console.log("🔍 DB Search Query Constructed:", JSON.stringify(query));
+    console.log("🔍 DB Search Query Raw:", query);
     console.log(
       `📄 Pagination: Page=${pageNum}, Limit=${limitNum}, Skip=${skip}`,
     );
 
-    // 2. Count Total Matching Donors for Pagination Metadata
+    // 2. Count Total Matching Donors
     const totalDonors = await Donor.countDocuments(query);
     const totalPages = Math.ceil(totalDonors / limitNum) || 1;
+    const hasMore = skip + limitNum < totalDonors; // Precise check for remaining records
 
     console.log(
-      `📊 DB Match Results: Total Donors=${totalDonors}, Total Pages=${totalPages}`,
+      `📊 DB Match Results: Total Donors=${totalDonors}, Total Pages=${totalPages}, HasMore=${hasMore}`,
     );
 
-    // 3. Fetch Paginated Slice of Donors
+    if (totalDonors === 0) {
+      return res.status(200).json({
+        success: true,
+        donors: [],
+        pagination: {
+          currentPage: pageNum,
+          totalPages: 1,
+          totalDonors: 0,
+          hasMore: false,
+        },
+      });
+    }
+
+    // 3. Fetch Paginated Slice
     const donors = await Donor.find(query)
       .populate("userId", "isOnline lastSeen profilePicture")
       .skip(skip)
       .limit(limitNum)
       .lean();
 
-    if (donors.length === 0) {
-      console.log(`⚠️ No donors found for page ${pageNum}.`);
-      return res.status(200).json({
-        success: true,
-        donors: [],
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalDonors, // Retain total count instead of resetting to 0
-          hasMore: pageNum < totalPages,
-        },
-      });
-    }
-
-    // 4. Batch Fetch Donation Requests for Current Page Donors
+    // 4. Batch Fetch Donation Requests
     const donorIds = donors.map((d) => d._id);
     const existingRequests = await DonationRequest.find({
       seekerId: currentUserId,
@@ -167,7 +174,7 @@ exports.searchDonors = async (req, res) => {
       }
     });
 
-    // 5. Process Availability & Mask Mobile Numbers
+    // 5. Process Availability
     const donorsWithStatus = donors.map((donor) => {
       const request = requestMap.get(donor._id.toString()) || null;
 
@@ -196,7 +203,7 @@ exports.searchDonors = async (req, res) => {
       };
     });
 
-    // 6. Sort Current Page: Online Donors First, then Available Donors
+    // 6. Sort Online & Available Donors First
     donorsWithStatus.sort((a, b) => {
       if (a.isOnline === b.isOnline) {
         return b.isAvailable - a.isAvailable;
@@ -211,7 +218,7 @@ exports.searchDonors = async (req, res) => {
         currentPage: pageNum,
         totalPages,
         totalDonors,
-        hasMore: pageNum < totalPages,
+        hasMore,
       },
     });
   } catch (error) {
