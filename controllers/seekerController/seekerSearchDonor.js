@@ -83,7 +83,14 @@ const { Donor, DonationRequest } = require("../../models/formModel");
 exports.searchDonors = async (req, res) => {
   try {
     const currentUserId = req.user.id || req.user._id;
-    const { bloodType, district, province, page = 1, limit = 15 } = req.query;
+    const {
+      bloodType,
+      district,
+      city,
+      province,
+      page = 1,
+      limit = 15,
+    } = req.query;
 
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 15;
@@ -91,39 +98,60 @@ exports.searchDonors = async (req, res) => {
 
     const today = new Date();
 
-    // 1. Build Search Query
+    // 1. Build Search Query (Insensitive Case + Field Alias Support)
     let query = {
       userId: { $ne: currentUserId },
     };
 
-    if (bloodType) query.bloodType = bloodType;
-    if (district) query.district = district;
-    if (province) query.province = province;
+    if (bloodType) {
+      query.bloodType = bloodType.trim();
+    }
+
+    const cityOrDistrict = district || city;
+    if (cityOrDistrict) {
+      const cityRegex = new RegExp(`^${cityOrDistrict.trim()}$`, "i");
+      query.$or = [{ district: cityRegex }, { city: cityRegex }];
+    }
+
+    if (province) {
+      query.province = new RegExp(`^${province.trim()}$`, "i");
+    }
+
+    console.log("🔍 DB Search Query Constructed:", JSON.stringify(query));
+    console.log(
+      `📄 Pagination: Page=${pageNum}, Limit=${limitNum}, Skip=${skip}`,
+    );
 
     // 2. Count Total Matching Donors for Pagination Metadata
     const totalDonors = await Donor.countDocuments(query);
+    const totalPages = Math.ceil(totalDonors / limitNum) || 1;
 
-    // 3. Fetch Paginated Slice of Donors with Populate
+    console.log(
+      `📊 DB Match Results: Total Donors=${totalDonors}, Total Pages=${totalPages}`,
+    );
+
+    // 3. Fetch Paginated Slice of Donors
     const donors = await Donor.find(query)
       .populate("userId", "isOnline lastSeen profilePicture")
       .skip(skip)
       .limit(limitNum)
-      .lean(); // .lean() improves read performance
+      .lean();
 
     if (donors.length === 0) {
+      console.log(`⚠️ No donors found for page ${pageNum}.`);
       return res.status(200).json({
         success: true,
         donors: [],
         pagination: {
           currentPage: pageNum,
-          totalPages: Math.ceil(totalDonors / limitNum) || 1,
-          totalDonors: 0,
-          hasMore: false,
+          totalPages,
+          totalDonors, // Retain total count instead of resetting to 0
+          hasMore: pageNum < totalPages,
         },
       });
     }
 
-    // 4. Batch Fetch Donation Requests for Current Page Donors (Avoids N+1 Query Problem)
+    // 4. Batch Fetch Donation Requests for Current Page Donors
     const donorIds = donors.map((d) => d._id);
     const existingRequests = await DonationRequest.find({
       seekerId: currentUserId,
@@ -132,10 +160,8 @@ exports.searchDonors = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Create a fast Map lookup for requests
     const requestMap = new Map();
     existingRequests.forEach((reqItem) => {
-      // Keep only the most recent request per donor
       if (!requestMap.has(reqItem.donorId.toString())) {
         requestMap.set(reqItem.donorId.toString(), reqItem);
       }
@@ -178,8 +204,6 @@ exports.searchDonors = async (req, res) => {
       return b.isOnline - a.isOnline;
     });
 
-    const totalPages = Math.ceil(totalDonors / limitNum);
-
     res.status(200).json({
       success: true,
       donors: donorsWithStatus,
@@ -191,7 +215,7 @@ exports.searchDonors = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Search Error:", error);
+    console.error("❌ Controller Search Error:", error);
     res.status(500).json({
       success: false,
       message: "Search failed",
