@@ -77,7 +77,7 @@ exports.sendBloodRequest = async (req, res) => {
       userId: targetUserId,
       title: "Urgent Blood Requirement!",
       message: `${activeAddress.fullName} from ${activeAddress.city} needs ${requestedBloodType} blood.`,
-      link: "/(dashboard)/request",
+      link: "/(dashboard)/donor",
     });
 
     res.status(200).json({

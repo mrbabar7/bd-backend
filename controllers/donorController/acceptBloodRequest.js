@@ -31,11 +31,12 @@ exports.acceptRequest = async (req, res) => {
       userId: request.seekerId,
       title: "Blood Request Accepted",
       message: `Good news! Donor ${donor.fullName} has accepted your blood request. Please contact the donor.`,
-      link: "/(manual)/donor-details",
-      params: {
-        donorId: donor._id.toString(),
-        requestId: request._id.toString(),
-      },
+      link: "/(dashboard)/seeker",
+      // link: "/(manual)/donor-details",
+      // params: {
+      //   donorId: donor._id.toString(),
+      //   requestId: request._id.toString(),
+      // },
     });
 
     // ================= REAL-TIME SOCKET EMIT =================

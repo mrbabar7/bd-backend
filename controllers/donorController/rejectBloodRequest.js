@@ -28,7 +28,7 @@ exports.rejectRequest = async (req, res) => {
       title: "Blood Request Rejected",
       message:
         "We are sorry, the donor has declined your blood request. Please search for another available donor.",
-      link: "/(dashboard)/request", // Exact Expo Router path
+      link: "/(dashboard)/seeker", // Exact Expo Router path
     });
 
     // ================= REAL-TIME SOCKET EMIT =================

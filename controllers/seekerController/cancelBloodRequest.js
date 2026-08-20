@@ -27,7 +27,7 @@ exports.cancelRequest = async (req, res) => {
         userId: donor.userId._id,
         title: "Blood Request Cancelled",
         message: `${seeker ? seeker.name : "A seeker"} cancelled their blood request.`,
-        link: "/(dashboard)/request",
+        link: "/(dashboard)/donor",
       });
     }
 
