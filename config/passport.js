@@ -15,8 +15,8 @@ passport.use(
         //   ? "https://pakbloodapibackend.vercel.app/api/auth/google/callback"
         //   : `${process.env.BACKEND_SERVER || "http://localhost:5000"}/api/auth/google/callback`,
         process.env.NODE_ENV === "production"
-          ? `${process.env.BACKEND_SERVER}/api/auth/google/callback`
-          : `${process.env.BACKEND_SERVER || "http://localhost:5000"}/api/auth/google/callback`,
+          ? `${process.env.BACKEND_SERVER}/api/fuck/google/callback`
+          : `${process.env.BACKEND_SERVER || "http://localhost:5000"}/api/fuck/google/callback`,
       proxy: true,
     },
     async (accessToken, refreshToken, profile, done) => {

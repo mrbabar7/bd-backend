@@ -61,15 +61,15 @@ app.use("/health", (req, res) => {
 
 initAutoRejectCron();
 
-app.use("/auth", route);
+app.use("/api/auth", route);
 app.use("/api/addresses", addressRouter);
 app.use("/api/user", userRouter);
 app.use("/api/donors", donorRoutes);
 app.use("/api/seeker", seekerRouter);
-app.use("/api", historyRouter);
+app.use("/api/history", historyRouter);
 app.use("/api/notifications", donorRoutes);
 app.use("/api/forms", formRoutes);
-app.use("/api/auth", googleSignup);
+app.use("/api/fuck", googleSignup);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
